@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"encoding/csv"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"io"
 	"log"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Page struct {
@@ -40,9 +41,9 @@ func main() {
     defer file.Close()
 
     reader := csv.NewReader(file)
-    reader.LazyQuotes = true  // 使 reader 在解析字段时更宽松，即使字段中存在不规则的引号也不会出错
+    reader.LazyQuotes = true  // Make the reader more lenient, even if there are irregular quotes
 
-    _, err = reader.Read()  // 读取并跳过第一行（表头）
+    _, err = reader.Read()  // skip the first line
     if err != nil {
         log.Fatal(err)
     }
@@ -68,7 +69,7 @@ func main() {
 			revisionTextLines, _ := strconv.Atoi(record[4])
 			revisionDatetime, _ := strconv.ParseInt(record[5], 10, 64)
 
-			if multi_string {
+			if multi_string {//this is to process the multi strings combine with comma
 				i := len(record)-1
 				pageId, _ = strconv.Atoi(record[0])
 				pageTitle = strings.Join(record[1:i-3], ",")
