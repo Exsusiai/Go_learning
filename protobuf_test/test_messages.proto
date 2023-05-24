@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+option go_package = "proto_path/";
+
+message Page {
+    int32 pageId = 1;
+    string pageTitle = 2;
+    int32 titleClass = 3;
+    int32 revisionTextLength = 4;
+    int32 revisionTextLines = 5;
+    int64 revisionDatetime = 6;
+}
+
+message frameHeader {
+    int32 frameId = 1;
+    int64 timestamp = 2;
+    int32 frameLength = 3;
+}
