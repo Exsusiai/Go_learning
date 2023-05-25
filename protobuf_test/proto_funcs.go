@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -21,19 +22,18 @@ func serializeData(pages []*proto_path.Page) ([]byte, error) {
 			return nil, err
 		}
 
-		// Create and serialize frame header
-		header := &proto_path.FrameHeader{
-			FrameId: p.GetPageId(),
-			Timestamp: 0,
-			FrameLength: int32(len(serializedPage)),
-		}
-		serializedHeader, err := proto.Marshal(header)
-		if err != nil {
-			return nil, err
-		}
+		var FrameId uint32 = uint32(p.GetPageId())
+		var Timestamp uint64 = 0
+		var FrameLength uint32 = uint32(len(serializedPage))
 
-		// Append the serialized header and page to the data
-		data = append(data, serializedHeader...)
+		FrameHeader_data := make([]byte, 16)
+
+		binary.BigEndian.PutUint32(FrameHeader_data[0:4], FrameId)
+		binary.BigEndian.PutUint64(FrameHeader_data[4:12], Timestamp)
+		binary.BigEndian.PutUint32(FrameHeader_data[12:16], FrameLength)		
+
+		// Append the serialized page to the data
+		data = append(data, FrameHeader_data...)
 		data = append(data, serializedPage...)
 	}
 	return data, nil
@@ -53,45 +53,48 @@ func retrieveMessage(id int, filename string) error {
 	}
 	defer file.Close()
 
-	//Assuming that a message will not exceed 1024 bytes, if it exceeds, you need to adjust this value
-	// buf := make([]byte, 1024)
-	
 	for {
 			// read frame header
-			headerBuf := make([]byte, 1024) 
-			n, err := file.Read(headerBuf)
+			headerBuf := make([]byte, 16) 
+			_, err := file.Read(headerBuf)
 			if err == io.EOF {
+					fmt.Println("End of file reached")
 					break
 			}
+
 			if err != nil {
 					fmt.Println("Error reading file for header: ", err)
 					return err
 			}
 
-			var frameHeader proto_path.FrameHeader
-			err = proto.Unmarshal(headerBuf[:n], &frameHeader)
-			if err != nil {
-					fmt.Println("Error unmarshalling header: ", err)
-					return err
-			}
+			frameId := uint32(binary.BigEndian.Uint32(headerBuf[0:4]))
+			// timestamp := uint64(binary.BigEndian.Uint64(headerBuf[4:12]))
+			frameLength := uint32(binary.BigEndian.Uint32(headerBuf[12:16]))
+
+			// fmt.Printf("FrameId: %v\n", frameId)
+			// fmt.Printf("Timestamp: %v\n", timestamp)
+			// fmt.Printf("FrameLength: %v\n", frameLength)
 
 			//check if the message id matches
-			if int(frameHeader.GetFrameId()) == id {
+			if int(frameId) == id {
+					fmt.Println("Frame ID matches.")
 					// if it matches, read the message
-					msgBuf := make([]byte, frameHeader.GetFrameLength()) // Allocate buffer according to FrameLength
-					n, err := file.Read(msgBuf)
+					msgBuf := make([]byte, frameLength) // Allocate buffer according to FrameLength
+					_, err := file.Read(msgBuf)
 					if err != nil {
 							fmt.Println("Error reading file for message: ", err)		
 							return err
 					}
 
 					var page proto_path.Page
-					err = proto.Unmarshal(msgBuf[:n], &page)
+					err = proto.Unmarshal(msgBuf, &page)
 					if err != nil {
 							fmt.Println("Error unmarshalling page: ", err)
 							return err
 					}
 
+					fmt.Println("Find the message with the given ID:")
+					fmt.Println("------message------")
 					// print the message
 					fmt.Printf("Page ID: %v\n", page.GetPageId())
 					fmt.Printf("Page Title: %v\n", page.GetPageTitle())
@@ -99,10 +102,11 @@ func retrieveMessage(id int, filename string) error {
 					fmt.Printf("Revision Text Length: %v\n", page.GetRevisionTextLength())
 					fmt.Printf("Revision Text Lines: %v\n", page.GetRevisionTextLines())
 					fmt.Printf("Revision Datetime: %v\n", page.GetRevisionDatetime())
+					fmt.Println("------message------")
 					return nil
 			} else {
 					// if it does not match, skip the message
-					_, err = file.Seek(int64(frameHeader.GetFrameLength()), io.SeekCurrent)
+					_, err = file.Seek(int64(frameLength), io.SeekCurrent)
 					if err != nil {
 							fmt.Println("Error skipping message: ", err)
 							return err
