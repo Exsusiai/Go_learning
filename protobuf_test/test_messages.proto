@@ -12,7 +12,7 @@ message Page {
 }
 
 message frameHeader {
-    int32 frameId = 1;
-    int64 timestamp = 2;
-    int32 frameLength = 3;
+    fixed32 frameId = 1;
+    fixed64 timestamp = 2;
+    fixed32 frameLength = 3;
 }
